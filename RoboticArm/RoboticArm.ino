@@ -17,7 +17,7 @@
  */
 
 // These control the start angle and the degree of movement to each side when
-// running without a program
+// running without a program.
 // Moves from testMoveStart - testMoveRange/2 to testMoveStart + testMoveRange/2
 const int testMoveStart = 90;
 const int testMoveRange = 90;
@@ -25,8 +25,8 @@ const int testMoveRange = 90;
 // uArm Pin settings
 const int button4Pin = 4;
 const int button7Pin = 7;
-const int servo0Pin = 8; // increments
-const int pot0Pin = A5; // decrements
+const int servo0Pin = 8; // increments pins for each servo so servo3 is pin 10
+const int pot0Pin = A5; // decrements pins for each pot so pot3 for servo3 is A3
 
 // The PWM settings for each servo, defaults are 544 to 2400
 // the third setting is a speed multiplier as a percentage eg 100 for 100% speed (unused)
@@ -53,7 +53,7 @@ bool button7Pressed = false;
 // jitter degrees that the current value (makes movement less accurate but less jerky).
 const int jitter = 5;
 
-// How many servoes/pots are connected - starting at servo0Pin and pot0Pin
+// How many servos/pots are connected - starting at servo0Pin and pot0Pin
 const int servoCount = 4;
 
 // Control objects for each servo
@@ -64,7 +64,7 @@ float pots[servoCount];
 
 // This is where the program is stored. The maximum size is programMaximumSize. Each
 // line in the array contains the angles of each servo the extra item being the number
-// steps for the movement calculated at recording time which controls to speed
+// steps for the movement currently uses defaultMoveDuration.
 const int programMaximumSize = 100;
 byte program[programMaximumSize][servoCount+1];
 int programLength = 0;
@@ -90,10 +90,12 @@ void initServos()
     servos[servo].attach(servo0Pin + servo, servoLimits[servo][0], servoLimits[servo][1]);
     if (programLength > 0)
     {
+      // If there is a program move the each servo to the starting position
       servos[servo].write(program[0][servo]);
     }
     else
     {
+      // If there is no program move to the middle of test movement
       servos[servo].write(testMoveStart); 
     }
   }
@@ -338,13 +340,15 @@ void addProgramLine()
       anyDifferent = true;
     }
   }
-  
+
+  // Set the move duration to default - this should be calculated based on the servo speed factor
   program[programLength][servoCount] = defaultMoveDuration;
   
   if (anyDifferent)
   {
     Serial.print(programLength);
     Serial.print(":");
+    // servoCount + 1 to include the duration
     for (int i = 0; i < servoCount + 1; i++)
     {
       Serial.print(" ");
@@ -380,8 +384,11 @@ int currentTestServo = 0;
 void performTestMoves()
 {
   int deflection = testMoveRange / 2;
+  // move negative
   moveServo(servos[currentTestServo], testMoveStart - deflection, 25);
+  // move positive
   moveServo(servos[currentTestServo], testMoveStart + deflection, 50);
+  // move back to center
   moveServo(servos[currentTestServo], testMoveStart, 25);
 
   // Count eg 0,1,2,0,1,2 (when servoCount is 3)
@@ -404,7 +411,7 @@ void performProgram() {
   for (int servo = 0; servo < servoCount; servo++)
   {
     start[servo] = servos[servo].read();
-    // Servo position
+    // Servo position for program output
     if (stepping) {
       char line[30];
       sprintf(line, "  program[%d][%d] = %d;", currentProgramLine, servo, program[currentProgramLine][servo]);
@@ -414,7 +421,7 @@ void performProgram() {
 
   if (stepping)
   {
-    // Duration
+    // Duration for program output
     char line[30];
     sprintf(line, "  program[%d][%d] = %d;", currentProgramLine, servoCount, program[currentProgramLine][servoCount]);
     Serial.println(line);
